@@ -1,0 +1,18 @@
+{
+  "name": "牌咖｜拉密計分",
+  "short_name": "牌咖",
+  "description": "簡單好用的拉密計分工具",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f0e6",
+  "theme_color": "#173b35",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

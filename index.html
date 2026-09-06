@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#173b35" />
+    <meta
+      name="description"
+      content="一個簡潔、好用的拉密計分工具。支援 2–6 位玩家、自動排名、牌局紀錄與戰況分享。"
+    />
+    <title>牌咖｜拉密計分</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要內容</a>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="牌咖拉密計分首頁">
+        <span class="brand-mark" aria-hidden="true">
+          <span>7</span>
+        </span>
+        <span class="brand-copy">
+          <strong>牌咖</strong>
+          <small>RUMI SCORE</small>
+        </span>
+      </a>
+
+      <div class="header-actions" id="header-actions" hidden>
+        <button class="icon-button" id="share-button" type="button" aria-label="分享目前戰況" title="分享戰況">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 16V3m0 0L7 8m5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
+          </svg>
+        </button>
+        <button class="text-button" id="reset-button" type="button">重新開局</button>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="setup-view" id="setup-view" aria-labelledby="setup-title">
+        <div class="setup-shell">
+          <div class="setup-intro">
+            <p class="eyebrow"><span></span> GAME NIGHT READY</p>
+            <h1 id="setup-title">每一局，<br />都算得清楚。</h1>
+            <p class="hero-copy">專心出牌，分數交給牌咖。免註冊、沒廣告，重新整理也不怕紀錄消失。</p>
+
+            <div class="tile-scene" aria-hidden="true">
+              <div class="tile tile-red tile-lean-left"><b>3</b><i></i></div>
+              <div class="tile tile-blue"><b>7</b><i></i></div>
+              <div class="tile tile-black tile-high"><b>11</b><i></i></div>
+              <div class="tile tile-orange tile-lean-right"><b>13</b><i></i></div>
+              <div class="tile joker-tile"><b>☺</b></div>
+              <div class="tile-rack"></div>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="card-heading">
+              <div>
+                <p class="step-label">STEP 01</p>
+                <h2>今晚有哪些牌咖？</h2>
+              </div>
+              <span class="player-count" id="player-count">4 人</span>
+            </div>
+
+            <form id="setup-form" novalidate>
+              <div class="player-input-list" id="player-input-list"></div>
+
+              <button class="add-player-button" id="add-player-button" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                加一位玩家
+              </button>
+
+              <div class="rule-note">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 11v5m0-8h.01" />
+                </svg>
+                <p><strong>計分方式</strong>贏家獲得其他玩家剩餘牌的總分；其他玩家扣除自己的剩餘牌分。鬼牌為 30 分。</p>
+              </div>
+
+              <button class="primary-button start-button" type="submit">
+                開始這場牌局
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+              </button>
+              <p class="form-hint">名字留白會自動命名，之後即可開始計分</p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="match-view" id="match-view" aria-labelledby="match-title" hidden>
+        <div class="match-hero">
+          <div>
+            <p class="eyebrow light"><span></span> LIVE SCOREBOARD</p>
+            <h1 id="match-title">今晚戰況</h1>
+            <p id="match-subtitle">牌局才正要開始</p>
+          </div>
+          <div class="hero-leader" id="hero-leader" aria-live="polite"></div>
+        </div>
+
+        <div class="match-layout">
+          <section class="score-section" aria-labelledby="score-heading">
+            <div class="section-heading">
+              <div>
+                <p class="step-label">SCOREBOARD</p>
+                <h2 id="score-heading">目前排名</h2>
+              </div>
+              <button class="secondary-button desktop-round-button" id="new-round-button" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                記一局
+              </button>
+            </div>
+            <ol class="scoreboard" id="scoreboard"></ol>
+          </section>
+
+          <section class="history-section" aria-labelledby="history-heading">
+            <div class="section-heading history-heading-row">
+              <div>
+                <p class="step-label">ROUND LOG</p>
+                <h2 id="history-heading">牌局紀錄</h2>
+              </div>
+              <span class="round-count" id="round-count">0 局</span>
+            </div>
+            <div class="empty-history" id="empty-history">
+              <div class="empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M8 3h8l3 4v13H5V7l3-4Z" /><path d="M9 12h6m-6 4h4" /></svg>
+              </div>
+              <h3>還沒有牌局紀錄</h3>
+              <p>打完第一局後，點「記一局」輸入分數。</p>
+            </div>
+            <ol class="history-list" id="history-list"></ol>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div class="mobile-round-bar" id="mobile-round-bar" hidden>
+      <button class="primary-button" id="mobile-new-round-button" type="button">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        記錄新一局
+      </button>
+    </div>
+
+    <dialog class="app-dialog round-dialog" id="round-dialog" aria-labelledby="round-dialog-title">
+      <form method="dialog" class="dialog-shell" id="round-form">
+        <div class="dialog-header">
+          <div>
+            <p class="step-label" id="round-step-label">ROUND 01</p>
+            <h2 id="round-dialog-title">這局誰先出完？</h2>
+          </div>
+          <button class="dialog-close" value="cancel" type="submit" aria-label="關閉">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="dialog-content">
+          <fieldset class="winner-fieldset">
+            <legend>選擇本局贏家</legend>
+            <div class="winner-options" id="winner-options"></div>
+          </fieldset>
+
+          <div class="score-entry-heading">
+            <div>
+              <h3>其他玩家剩餘牌分</h3>
+              <p>直接輸入牌架上的數字總和</p>
+            </div>
+            <span>鬼牌 30 分</span>
+          </div>
+          <div class="round-score-inputs" id="round-score-inputs"></div>
+          <p class="round-error" id="round-error" role="alert"></p>
+        </div>
+
+        <div class="dialog-footer">
+          <div class="winner-total">
+            <span>贏家本局獲得</span>
+            <strong id="winner-total">+0</strong>
+          </div>
+          <button class="primary-button" id="save-round-button" type="button" disabled>
+            儲存第 1 局
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="confirm-dialog" id="delete-round-dialog" aria-labelledby="delete-dialog-title">
+      <form method="dialog" class="confirm-shell">
+        <div class="confirm-icon danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-9 0 1 14h10l1-14M10 11v6m4-6v6" /></svg>
+        </div>
+        <h2 id="delete-dialog-title">刪除這局紀錄？</h2>
+        <p id="delete-dialog-copy">刪除後，所有人的總分都會重新計算。</p>
+        <div class="confirm-actions">
+          <button class="secondary-button" value="cancel" type="submit">先保留</button>
+          <button class="danger-button" id="confirm-delete-button" value="default" type="submit">確認刪除</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="confirm-dialog" id="reset-dialog" aria-labelledby="reset-dialog-title">
+      <form method="dialog" class="confirm-shell">
+        <div class="confirm-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.68M4 4v4.68h4.68" /></svg>
+        </div>
+        <h2 id="reset-dialog-title">要重新開一場嗎？</h2>
+        <p>目前的玩家、分數與牌局紀錄都會從這台裝置移除。</p>
+        <div class="confirm-actions">
+          <button class="secondary-button" value="cancel" type="submit">繼續這場</button>
+          <button class="danger-button" id="confirm-reset-button" value="default" type="submit">重新開局</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+      <span id="toast-message">已儲存</span>
+    </div>
+    <div class="sr-only" id="live-region" aria-live="polite"></div>
+  </body>
+</html>
