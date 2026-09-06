@@ -768,16 +768,16 @@ svg {
 
 .duration-switch button,
 .timer-icon-button {
-  min-height: 38px;
+  min-height: 44px;
   border: 0;
 }
 
 .duration-switch button {
-  padding: 0 13px;
+  padding: 0 16px;
   color: #777066;
   background: transparent;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -789,7 +789,7 @@ svg {
 
 .timer-icon-button {
   display: grid;
-  width: 38px;
+  width: 44px;
   padding: 0;
   place-items: center;
   color: var(--green);
@@ -807,7 +807,7 @@ svg {
 }
 
 .timer-icon-button svg {
-  width: 18px;
+  width: 20px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -878,12 +878,13 @@ svg {
 }
 
 .timer-order-button {
-  padding: 1px 5px;
+  min-height: 28px;
+  padding: 3px 8px;
   color: var(--green-2);
   background: #e4eee9;
   border: 0;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -939,7 +940,7 @@ svg {
 
 .timer-actions {
   justify-content: flex-end;
-  gap: 9px;
+  gap: 12px;
 }
 
 .timer-start-button,
@@ -955,16 +956,25 @@ svg {
   font-weight: 900;
 }
 
+.timer-start-button,
+.timer-next-button {
+  min-height: 60px;
+  gap: 10px;
+  border-radius: 16px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
 .timer-start-button {
-  padding: 0 15px;
+  padding: 0 20px;
   color: var(--green);
   background: #f0ebe2;
   border: 1px solid #d5cbbb;
 }
 
 .timer-next-button {
-  min-width: 177px;
-  padding: 0 18px;
+  min-width: 210px;
+  padding: 0 24px;
   color: white;
   background: var(--coral);
   border: 0;
@@ -991,6 +1001,11 @@ svg {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
+}
+
+.timer-start-button svg,
+.timer-next-button svg {
+  width: 20px;
 }
 
 .turn-timer.is-warning .timer-clock,
@@ -1874,6 +1889,17 @@ svg {
   stroke-width: 2;
 }
 
+@media (max-width: 940px) {
+  .timer-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+  }
+
+  .timer-actions {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 850px) {
   .setup-shell {
     grid-template-columns: 1fr;
@@ -2055,6 +2081,7 @@ svg {
 
   .timer-header {
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 10px;
     padding-bottom: 13px;
   }
@@ -2065,17 +2092,18 @@ svg {
 
   .timer-settings {
     gap: 5px;
+    margin-left: auto;
   }
 
   .duration-switch button {
-    min-height: 34px;
-    padding: 0 9px;
-    font-size: 11px;
+    min-height: 40px;
+    padding: 0 11px;
+    font-size: 12px;
   }
 
   .timer-icon-button {
-    width: 34px;
-    min-height: 34px;
+    width: 40px;
+    min-height: 40px;
   }
 
   .timer-main {
@@ -2130,9 +2158,10 @@ svg {
   .timer-next-button {
     width: 100%;
     min-width: 0;
-    min-height: 45px;
-    padding: 0 9px;
-    font-size: 11px;
+    min-height: 56px;
+    gap: 7px;
+    padding: 0 8px;
+    font-size: 13px;
   }
 
   .match-layout {
