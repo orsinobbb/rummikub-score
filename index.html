@@ -101,6 +101,55 @@
           <div class="hero-leader" id="hero-leader" aria-live="polite"></div>
         </div>
 
+        <section class="turn-timer" id="turn-timer" aria-labelledby="timer-heading">
+          <div class="timer-header">
+            <div>
+              <p class="step-label">TURN TIMER</p>
+              <h2 id="timer-heading">回合計時</h2>
+            </div>
+            <div class="timer-settings">
+              <div class="duration-switch" role="group" aria-label="選擇回合秒數">
+                <button type="button" data-timer-duration="60" aria-pressed="true">60 秒</button>
+                <button type="button" data-timer-duration="90" aria-pressed="false">90 秒</button>
+              </div>
+              <button class="timer-icon-button" id="timer-reset-button" type="button" aria-label="重新計時" title="重新計時">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.68M4 4v4.68h4.68" /></svg>
+              </button>
+              <button class="timer-icon-button" id="timer-sound-button" type="button" aria-label="關閉逾時音效" aria-pressed="true" title="逾時音效">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 9v6h4l5 4V5L9 9H5Z" /><path d="M17 9a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="timer-main">
+            <div class="current-turn-player">
+              <span class="timer-avatar" id="timer-player-avatar" aria-hidden="true">玩</span>
+              <div>
+                <span class="timer-kicker">現在輪到</span>
+                <strong id="timer-player-name">玩家</strong>
+                <small id="timer-next-name">下一位：玩家</small>
+              </div>
+            </div>
+
+            <div class="timer-clock-block">
+              <time class="timer-clock" id="timer-clock" datetime="PT60S">01:00</time>
+              <div class="timer-progress" aria-hidden="true"><span id="timer-progress-bar"></span></div>
+              <p id="timer-status" aria-live="polite">準備好就開始計時</p>
+            </div>
+
+            <div class="timer-actions">
+              <button class="timer-start-button" id="timer-toggle-button" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 7 8 5-8 5V7Z" /></svg>
+                <span>開始計時</span>
+              </button>
+              <button class="timer-next-button" id="timer-next-button" type="button">
+                <span>完成，換下一位</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <div class="match-layout">
           <section class="score-section" aria-labelledby="score-heading">
             <div class="section-heading">
@@ -138,10 +187,23 @@
     </main>
 
     <div class="mobile-round-bar" id="mobile-round-bar" hidden>
-      <button class="primary-button" id="mobile-new-round-button" type="button">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-        記錄新一局
+      <button class="timer-next-button mobile-next-button" id="mobile-next-player-button" type="button">
+        <span id="mobile-next-player-label">完成，換下一位</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
       </button>
+      <button class="mobile-score-button" id="mobile-new-round-button" type="button" aria-label="記錄新一局">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        <span>記分</span>
+      </button>
+    </div>
+
+    <div class="timeout-effect" id="timeout-effect" hidden aria-hidden="true">
+      <div class="timeout-rings"><i></i><i></i><i></i></div>
+      <div class="timeout-message">
+        <span>TIME'S UP</span>
+        <strong>時間到！</strong>
+        <small id="timeout-player-name">請換下一位玩家</small>
+      </div>
     </div>
 
     <dialog class="app-dialog round-dialog" id="round-dialog" aria-labelledby="round-dialog-title">

@@ -4,6 +4,7 @@
   const STORAGE_KEY = "paika-rummikub-score:v1";
   const MAX_PLAYERS = 6;
   const MIN_PLAYERS = 2;
+  const TIMER_DURATIONS = [60, 90];
   const COLORS = ["#d95b43", "#3177a5", "#d99a2f", "#2f7563", "#765b93", "#a9586b"];
 
   const elements = {
@@ -25,6 +26,21 @@
     newRoundButton: document.querySelector("#new-round-button"),
     mobileNewRoundButton: document.querySelector("#mobile-new-round-button"),
     mobileRoundBar: document.querySelector("#mobile-round-bar"),
+    turnTimer: document.querySelector("#turn-timer"),
+    timerPlayerAvatar: document.querySelector("#timer-player-avatar"),
+    timerPlayerName: document.querySelector("#timer-player-name"),
+    timerNextName: document.querySelector("#timer-next-name"),
+    timerClock: document.querySelector("#timer-clock"),
+    timerProgressBar: document.querySelector("#timer-progress-bar"),
+    timerStatus: document.querySelector("#timer-status"),
+    timerToggleButton: document.querySelector("#timer-toggle-button"),
+    timerNextButton: document.querySelector("#timer-next-button"),
+    mobileNextPlayerButton: document.querySelector("#mobile-next-player-button"),
+    mobileNextPlayerLabel: document.querySelector("#mobile-next-player-label"),
+    timerResetButton: document.querySelector("#timer-reset-button"),
+    timerSoundButton: document.querySelector("#timer-sound-button"),
+    timeoutEffect: document.querySelector("#timeout-effect"),
+    timeoutPlayerName: document.querySelector("#timeout-player-name"),
     roundDialog: document.querySelector("#round-dialog"),
     roundForm: document.querySelector("#round-form"),
     roundStepLabel: document.querySelector("#round-step-label"),
@@ -49,6 +65,15 @@
   let selectedWinnerId = null;
   let pendingDeleteRoundId = null;
   let toastTimer = null;
+  let timerInterval = null;
+  let timeoutEffectTimer = null;
+  let timerAudioContext = null;
+  let turnTimer = {
+    matchKey: null,
+    status: "idle",
+    remainingMs: 60000,
+    deadline: 0,
+  };
 
   function uid(prefix) {
     if (window.crypto?.randomUUID) return `${prefix}-${window.crypto.randomUUID()}`;
@@ -88,6 +113,261 @@
 
   function getInitial(name) {
     return Array.from(name.trim())[0]?.toUpperCase() || "玩";
+  }
+
+  function ensureTurnTimerState() {
+    if (!state) return;
+    const savedTimer = state.turnTimer || {};
+    const duration = TIMER_DURATIONS.includes(Number(savedTimer.duration)) ? Number(savedTimer.duration) : 60;
+    const currentPlayerId = state.players.some((player) => player.id === savedTimer.currentPlayerId)
+      ? savedTimer.currentPlayerId
+      : state.players[0].id;
+    const soundEnabled = savedTimer.soundEnabled !== false;
+    const needsSave =
+      !state.turnTimer ||
+      savedTimer.duration !== duration ||
+      savedTimer.currentPlayerId !== currentPlayerId ||
+      savedTimer.soundEnabled !== soundEnabled;
+
+    state.turnTimer = { duration, currentPlayerId, soundEnabled };
+    if (needsSave) saveState();
+  }
+
+  function stopTimerInterval() {
+    if (timerInterval) window.clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function hideTimeoutEffect() {
+    window.clearTimeout(timeoutEffectTimer);
+    timeoutEffectTimer = null;
+    elements.timeoutEffect.hidden = true;
+  }
+
+  function syncTurnTimerRuntime() {
+    ensureTurnTimerState();
+    const matchKey = state.startedAt || state.players.map((player) => player.id).join("|");
+    if (turnTimer.matchKey === matchKey) return;
+
+    stopTimerInterval();
+    hideTimeoutEffect();
+    turnTimer = {
+      matchKey,
+      status: "idle",
+      remainingMs: state.turnTimer.duration * 1000,
+      deadline: 0,
+    };
+  }
+
+  function getCurrentTurnPlayers() {
+    ensureTurnTimerState();
+    let index = state.players.findIndex((player) => player.id === state.turnTimer.currentPlayerId);
+    if (index < 0) index = 0;
+    return {
+      current: state.players[index],
+      next: state.players[(index + 1) % state.players.length],
+      index,
+    };
+  }
+
+  function formatTimer(milliseconds) {
+    const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function renderTimer() {
+    if (!state) return;
+    const { current, next } = getCurrentTurnPlayers();
+    const durationMs = state.turnTimer.duration * 1000;
+    const ratio = Math.max(0, Math.min(1, turnTimer.remainingMs / durationMs));
+    const secondsLeft = Math.max(0, Math.ceil(turnTimer.remainingMs / 1000));
+    const isWarning = turnTimer.status === "running" && secondsLeft <= 10;
+    const isOvertime = turnTimer.status === "overtime";
+
+    elements.timerPlayerAvatar.textContent = getInitial(current.name);
+    elements.timerPlayerAvatar.style.setProperty("--timer-player", current.color);
+    elements.timerPlayerName.textContent = current.name;
+    elements.timerNextName.textContent = `下一位：${next.name}`;
+    elements.timerClock.textContent = formatTimer(turnTimer.remainingMs);
+    elements.timerClock.dateTime = `PT${secondsLeft}S`;
+    elements.timerProgressBar.style.transform = `scaleX(${ratio})`;
+    elements.turnTimer.classList.toggle("is-warning", isWarning);
+    elements.turnTimer.classList.toggle("is-overtime", isOvertime);
+
+    const statusCopy = {
+      idle: "準備好就開始計時",
+      running: isWarning ? `最後 ${secondsLeft} 秒` : "正在倒數",
+      paused: "已暫停，按繼續恢復",
+      overtime: "時間到，請換下一位",
+    };
+    elements.timerStatus.textContent = statusCopy[turnTimer.status];
+
+    const isRunning = turnTimer.status === "running";
+    const toggleLabel = isRunning
+      ? "暫停"
+      : turnTimer.status === "paused"
+        ? "繼續"
+        : isOvertime
+          ? "再計時"
+          : "開始計時";
+    const togglePath = isRunning ? "M8 6v12m8-12v12" : "m9 7 8 5-8 5V7Z";
+    elements.timerToggleButton.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${togglePath}" /></svg><span>${toggleLabel}</span>`;
+    elements.timerToggleButton.setAttribute("aria-label", toggleLabel);
+
+    elements.turnTimer.querySelectorAll("[data-timer-duration]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(Number(button.dataset.timerDuration) === state.turnTimer.duration));
+    });
+
+    const soundEnabled = state.turnTimer.soundEnabled;
+    elements.timerSoundButton.setAttribute("aria-pressed", String(soundEnabled));
+    elements.timerSoundButton.setAttribute("aria-label", soundEnabled ? "關閉逾時音效" : "開啟逾時音效");
+    elements.timerSoundButton.title = soundEnabled ? "逾時音效已開啟" : "逾時音效已關閉";
+
+    const nextCopy = `完成，換 ${next.name}`;
+    elements.timerNextButton.querySelector("span").textContent = nextCopy;
+    elements.mobileNextPlayerLabel.textContent = nextCopy;
+    elements.timerNextButton.setAttribute("aria-label", nextCopy);
+    elements.mobileNextPlayerButton.setAttribute("aria-label", nextCopy);
+  }
+
+  function primeTimerAudio() {
+    if (!state?.turnTimer.soundEnabled) return;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!timerAudioContext || timerAudioContext.state === "closed") timerAudioContext = new AudioContextClass();
+    if (timerAudioContext.state === "suspended") timerAudioContext.resume().catch(() => {});
+  }
+
+  function playTimeoutSound() {
+    if (!state?.turnTimer.soundEnabled) return;
+    primeTimerAudio();
+    if (!timerAudioContext) return;
+
+    const startAt = timerAudioContext.currentTime + 0.02;
+    [
+      { frequency: 784, offset: 0, duration: 0.22 },
+      { frequency: 988, offset: 0.27, duration: 0.22 },
+      { frequency: 784, offset: 0.54, duration: 0.38 },
+    ].forEach(({ frequency, offset, duration }) => {
+      const oscillator = timerAudioContext.createOscillator();
+      const gain = timerAudioContext.createGain();
+      const noteStart = startAt + offset;
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+      gain.gain.setValueAtTime(0.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(0.13, noteStart + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration);
+      oscillator.connect(gain);
+      gain.connect(timerAudioContext.destination);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + duration + 0.02);
+    });
+  }
+
+  function showTimeoutEffect(playerName) {
+    hideTimeoutEffect();
+    elements.timeoutPlayerName.textContent = `${playerName} 的時間到了，請換下一位`;
+    elements.timeoutEffect.hidden = false;
+    void elements.timeoutEffect.offsetWidth;
+    timeoutEffectTimer = window.setTimeout(hideTimeoutEffect, 1800);
+  }
+
+  function expireTurnTimer() {
+    if (turnTimer.status === "overtime") return;
+    const { current } = getCurrentTurnPlayers();
+    stopTimerInterval();
+    turnTimer.status = "overtime";
+    turnTimer.remainingMs = 0;
+    turnTimer.deadline = 0;
+    renderTimer();
+    playTimeoutSound();
+    showTimeoutEffect(current.name);
+    if (navigator.vibrate) navigator.vibrate([180, 90, 260]);
+    elements.liveRegion.textContent = `${current.name} 的時間到了，請換下一位玩家`;
+  }
+
+  function tickTurnTimer() {
+    if (turnTimer.status !== "running") return;
+    turnTimer.remainingMs = Math.max(0, turnTimer.deadline - Date.now());
+    if (turnTimer.remainingMs <= 0) {
+      expireTurnTimer();
+      return;
+    }
+    renderTimer();
+  }
+
+  function startTurnTimer() {
+    if (!state) return;
+    syncTurnTimerRuntime();
+    hideTimeoutEffect();
+    if (turnTimer.status === "overtime" || turnTimer.remainingMs <= 0) {
+      turnTimer.remainingMs = state.turnTimer.duration * 1000;
+    }
+    primeTimerAudio();
+    turnTimer.status = "running";
+    turnTimer.deadline = Date.now() + turnTimer.remainingMs;
+    stopTimerInterval();
+    timerInterval = window.setInterval(tickTurnTimer, 200);
+    renderTimer();
+  }
+
+  function pauseTurnTimer() {
+    if (turnTimer.status !== "running") return;
+    turnTimer.remainingMs = Math.max(0, turnTimer.deadline - Date.now());
+    stopTimerInterval();
+    if (turnTimer.remainingMs <= 0) {
+      expireTurnTimer();
+      return;
+    }
+    turnTimer.status = "paused";
+    turnTimer.deadline = 0;
+    renderTimer();
+  }
+
+  function resetTurnTimer(keepRunning = false) {
+    if (!state) return;
+    stopTimerInterval();
+    hideTimeoutEffect();
+    turnTimer.remainingMs = state.turnTimer.duration * 1000;
+    turnTimer.deadline = 0;
+    turnTimer.status = "idle";
+    if (keepRunning) startTurnTimer();
+    else renderTimer();
+  }
+
+  function toggleTurnTimer() {
+    if (turnTimer.status === "running") pauseTurnTimer();
+    else startTurnTimer();
+  }
+
+  function setTimerDuration(duration) {
+    if (!state || !TIMER_DURATIONS.includes(duration) || state.turnTimer.duration === duration) return;
+    const keepRunning = turnTimer.status === "running";
+    state.turnTimer.duration = duration;
+    saveState();
+    resetTurnTimer(keepRunning);
+    showToast(`每位玩家改為 ${duration} 秒`);
+  }
+
+  function advanceTurnPlayer() {
+    if (!state) return;
+    const { next } = getCurrentTurnPlayers();
+    state.turnTimer.currentPlayerId = next.id;
+    saveState();
+    resetTurnTimer();
+    startTurnTimer();
+    elements.liveRegion.textContent = `換 ${next.name}，開始 ${state.turnTimer.duration} 秒倒數`;
+  }
+
+  function toggleTimerSound() {
+    if (!state) return;
+    state.turnTimer.soundEnabled = !state.turnTimer.soundEnabled;
+    saveState();
+    if (state.turnTimer.soundEnabled) primeTimerAudio();
+    renderTimer();
+    showToast(state.turnTimer.soundEnabled ? "逾時音效已開啟" : "逾時音效已關閉");
   }
 
   function getTotals() {
@@ -166,11 +446,14 @@
     elements.mobileRoundBar.hidden = !hasMatch;
 
     if (!hasMatch) {
+      stopTimerInterval();
+      hideTimeoutEffect();
       renderSetupInputs();
       document.title = "牌咖｜拉密計分";
       return;
     }
 
+    syncTurnTimerRuntime();
     renderMatch();
   }
 
@@ -249,6 +532,8 @@
           </li>`;
       })
       .join("");
+
+    renderTimer();
   }
 
   function startMatch(event) {
@@ -273,6 +558,11 @@
       startedAt: new Date().toISOString(),
       players,
       rounds: [],
+      turnTimer: {
+        duration: 60,
+        currentPlayerId: players[0].id,
+        soundEnabled: true,
+      },
     };
     saveState();
     renderApp();
@@ -498,6 +788,19 @@
   });
 
   elements.setupForm.addEventListener("submit", startMatch);
+  elements.turnTimer.addEventListener("click", (event) => {
+    const durationButton = event.target.closest("[data-timer-duration]");
+    if (durationButton) setTimerDuration(Number(durationButton.dataset.timerDuration));
+  });
+  elements.timerToggleButton.addEventListener("click", toggleTurnTimer);
+  elements.timerNextButton.addEventListener("click", advanceTurnPlayer);
+  elements.mobileNextPlayerButton.addEventListener("click", advanceTurnPlayer);
+  elements.timerResetButton.addEventListener("click", () => {
+    const keepRunning = turnTimer.status === "running";
+    resetTurnTimer(keepRunning);
+    showToast(keepRunning ? "已重新開始倒數" : "計時器已重設");
+  });
+  elements.timerSoundButton.addEventListener("click", toggleTimerSound);
   elements.newRoundButton.addEventListener("click", openRoundDialog);
   elements.mobileNewRoundButton.addEventListener("click", openRoundDialog);
   elements.resetButton.addEventListener("click", () => elements.resetDialog.showModal());
@@ -524,6 +827,10 @@
     if (elements.deleteRoundDialog.returnValue === "cancel") pendingDeleteRoundId = null;
   });
   elements.confirmResetButton.addEventListener("click", resetMatch);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") tickTurnTimer();
+  });
 
   renderApp();
 })();
