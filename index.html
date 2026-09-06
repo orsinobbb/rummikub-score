@@ -127,7 +127,12 @@
               <div>
                 <span class="timer-kicker">現在輪到</span>
                 <strong id="timer-player-name">玩家</strong>
-                <small id="timer-next-name">下一位：玩家</small>
+                <div class="timer-next-row">
+                  <small id="timer-next-name">下一位：玩家</small>
+                  <button class="timer-order-button" id="timer-order-button" type="button" aria-haspopup="dialog">
+                    臨時換順序
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -245,6 +250,18 @@
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
           </button>
         </div>
+      </form>
+    </dialog>
+
+    <dialog class="confirm-dialog order-dialog" id="turn-order-dialog" aria-labelledby="turn-order-dialog-title">
+      <form method="dialog" class="confirm-shell">
+        <div class="confirm-icon order-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M7 7h11m-3-3 3 3-3 3M17 17H6m3 3-3-3 3-3" /></svg>
+        </div>
+        <h2 id="turn-order-dialog-title">臨時換下一位</h2>
+        <p>目前玩家的倒數會繼續，只調整這一輪尚未玩的順序。</p>
+        <ol class="turn-order-list" id="turn-order-list" aria-label="這一輪接下來的玩家順序"></ol>
+        <button class="secondary-button order-dialog-close" value="cancel" type="submit">先不調整</button>
       </form>
     </dialog>
 

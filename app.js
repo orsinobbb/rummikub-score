@@ -30,6 +30,9 @@
     timerPlayerAvatar: document.querySelector("#timer-player-avatar"),
     timerPlayerName: document.querySelector("#timer-player-name"),
     timerNextName: document.querySelector("#timer-next-name"),
+    timerOrderButton: document.querySelector("#timer-order-button"),
+    turnOrderDialog: document.querySelector("#turn-order-dialog"),
+    turnOrderList: document.querySelector("#turn-order-list"),
     timerClock: document.querySelector("#timer-clock"),
     timerProgressBar: document.querySelector("#timer-progress-bar"),
     timerStatus: document.querySelector("#timer-status"),
@@ -73,6 +76,7 @@
     status: "idle",
     remainingMs: 60000,
     deadline: 0,
+    upcomingPlayerIds: [],
   };
 
   function uid(prefix) {
@@ -144,6 +148,15 @@
     elements.timeoutEffect.hidden = true;
   }
 
+  function getDefaultUpcomingPlayerIds(currentPlayerId) {
+    const currentIndex = state.players.findIndex((player) => player.id === currentPlayerId);
+    const startIndex = currentIndex >= 0 ? currentIndex : 0;
+    return Array.from(
+      { length: state.players.length - 1 },
+      (_, offset) => state.players[(startIndex + offset + 1) % state.players.length].id,
+    );
+  }
+
   function syncTurnTimerRuntime() {
     ensureTurnTimerState();
     const matchKey = state.startedAt || state.players.map((player) => player.id).join("|");
@@ -156,6 +169,7 @@
       status: "idle",
       remainingMs: state.turnTimer.duration * 1000,
       deadline: 0,
+      upcomingPlayerIds: getDefaultUpcomingPlayerIds(state.turnTimer.currentPlayerId),
     };
   }
 
@@ -163,9 +177,26 @@
     ensureTurnTimerState();
     let index = state.players.findIndex((player) => player.id === state.turnTimer.currentPlayerId);
     if (index < 0) index = 0;
+    const current = state.players[index];
+    const validIds = new Set(state.players.map((player) => player.id));
+    const seenIds = new Set();
+    turnTimer.upcomingPlayerIds = (Array.isArray(turnTimer.upcomingPlayerIds) ? turnTimer.upcomingPlayerIds : []).filter(
+      (playerId) => {
+        if (playerId === current.id || !validIds.has(playerId) || seenIds.has(playerId)) return false;
+        seenIds.add(playerId);
+        return true;
+      },
+    );
+    if (!turnTimer.upcomingPlayerIds.length) {
+      turnTimer.upcomingPlayerIds = getDefaultUpcomingPlayerIds(current.id);
+    }
+    const upcoming = turnTimer.upcomingPlayerIds
+      .map((playerId) => state.players.find((player) => player.id === playerId))
+      .filter(Boolean);
     return {
-      current: state.players[index],
-      next: state.players[(index + 1) % state.players.length],
+      current,
+      next: upcoming[0],
+      upcoming,
       index,
     };
   }
@@ -179,7 +210,7 @@
 
   function renderTimer() {
     if (!state) return;
-    const { current, next } = getCurrentTurnPlayers();
+    const { current, next, upcoming } = getCurrentTurnPlayers();
     const durationMs = state.turnTimer.duration * 1000;
     const ratio = Math.max(0, Math.min(1, turnTimer.remainingMs / durationMs));
     const secondsLeft = Math.max(0, Math.ceil(turnTimer.remainingMs / 1000));
@@ -190,6 +221,12 @@
     elements.timerPlayerAvatar.style.setProperty("--timer-player", current.color);
     elements.timerPlayerName.textContent = current.name;
     elements.timerNextName.textContent = `下一位：${next.name}`;
+    elements.timerOrderButton.disabled = upcoming.length <= 1;
+    elements.timerOrderButton.textContent = upcoming.length > 1 ? "臨時換順序" : "順序固定";
+    elements.timerOrderButton.setAttribute(
+      "aria-label",
+      upcoming.length > 1 ? `臨時更換下一位，目前是 ${next.name}` : "只有一位下一位玩家，順序固定",
+    );
     elements.timerClock.textContent = formatTimer(turnTimer.remainingMs);
     elements.timerClock.dateTime = `PT${secondsLeft}S`;
     elements.timerProgressBar.style.transform = `scaleX(${ratio})`;
@@ -283,6 +320,7 @@
     turnTimer.deadline = 0;
     renderTimer();
     playTimeoutSound();
+    if (elements.turnOrderDialog.open) elements.turnOrderDialog.close();
     showTimeoutEffect(current.name);
     if (navigator.vibrate) navigator.vibrate([180, 90, 260]);
     elements.liveRegion.textContent = `${current.name} 的時間到了，請換下一位玩家`;
@@ -351,10 +389,59 @@
     showToast(`每位玩家改為 ${duration} 秒`);
   }
 
+  function renderTurnOrderOptions() {
+    const { upcoming } = getCurrentTurnPlayers();
+    elements.turnOrderList.innerHTML = upcoming
+      .map(
+        (player, index) => `
+          <li>
+            <button
+              class="turn-order-option ${index === 0 ? "is-next" : ""}"
+              type="button"
+              data-prioritize-player="${escapeHtml(player.id)}"
+              aria-label="${index === 0 ? `${escapeHtml(player.name)}目前是下一位` : `將${escapeHtml(player.name)}移到下一位`}"
+            >
+              <span class="order-position">${String(index + 1).padStart(2, "0")}</span>
+              <span class="order-avatar" style="--avatar:${player.color}" aria-hidden="true">${escapeHtml(getInitial(player.name))}</span>
+              <span class="order-player-name">${escapeHtml(player.name)}</span>
+              <span class="order-choice-label">${index === 0 ? "目前下一位" : "移到下一位"}</span>
+            </button>
+          </li>`,
+      )
+      .join("");
+  }
+
+  function openTurnOrderDialog() {
+    if (!state) return;
+    const { upcoming } = getCurrentTurnPlayers();
+    if (upcoming.length <= 1) {
+      showToast("目前只有一位下一位玩家，順序固定");
+      return;
+    }
+    renderTurnOrderOptions();
+    elements.turnOrderDialog.showModal();
+  }
+
+  function prioritizeUpcomingPlayer(playerId) {
+    const playerIndex = turnTimer.upcomingPlayerIds.indexOf(playerId);
+    if (playerIndex < 0) return;
+    const [playerIdToMove] = turnTimer.upcomingPlayerIds.splice(playerIndex, 1);
+    turnTimer.upcomingPlayerIds.unshift(playerIdToMove);
+    const player = state.players.find((item) => item.id === playerIdToMove);
+    elements.turnOrderDialog.close();
+    renderTimer();
+    showToast(playerIndex === 0 ? `${player.name} 已經是下一位` : `下一位改為 ${player.name}，倒數繼續`);
+    elements.liveRegion.textContent = `臨時調整順序，下一位是 ${player.name}，目前倒數沒有重設`;
+  }
+
   function advanceTurnPlayer() {
     if (!state) return;
     const { next } = getCurrentTurnPlayers();
+    turnTimer.upcomingPlayerIds.shift();
     state.turnTimer.currentPlayerId = next.id;
+    if (!turnTimer.upcomingPlayerIds.length) {
+      turnTimer.upcomingPlayerIds = getDefaultUpcomingPlayerIds(next.id);
+    }
     saveState();
     resetTurnTimer();
     startTurnTimer();
@@ -795,6 +882,11 @@
   elements.timerToggleButton.addEventListener("click", toggleTurnTimer);
   elements.timerNextButton.addEventListener("click", advanceTurnPlayer);
   elements.mobileNextPlayerButton.addEventListener("click", advanceTurnPlayer);
+  elements.timerOrderButton.addEventListener("click", openTurnOrderDialog);
+  elements.turnOrderList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-prioritize-player]");
+    if (button) prioritizeUpcomingPlayer(button.dataset.prioritizePlayer);
+  });
   elements.timerResetButton.addEventListener("click", () => {
     const keepRunning = turnTimer.status === "running";
     resetTurnTimer(keepRunning);
