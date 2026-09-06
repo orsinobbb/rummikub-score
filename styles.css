@@ -818,7 +818,7 @@ svg {
 .timer-main {
   display: grid;
   grid-template-columns: minmax(200px, 1fr) auto minmax(285px, 1fr);
-  gap: 28px;
+  gap: 22px;
   padding-top: 18px;
 }
 
@@ -899,22 +899,22 @@ svg {
 }
 
 .timer-clock-block {
-  min-width: 155px;
+  min-width: 225px;
   text-align: center;
 }
 
 .timer-clock {
   display: block;
-  font-size: clamp(48px, 5vw, 64px);
+  font-size: clamp(88px, 9vw, 120px);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.07em;
-  line-height: 0.95;
+  line-height: 0.88;
 }
 
 .timer-progress {
-  height: 5px;
-  margin: 11px 0 7px;
+  height: 6px;
+  margin: 14px 0 7px;
   overflow: hidden;
   background: #e5ded2;
   border-radius: 999px;
@@ -2079,7 +2079,8 @@ svg {
   }
 
   .timer-main {
-    gap: 15px 10px;
+    grid-template-columns: 1fr;
+    gap: 16px;
     padding-top: 15px;
   }
 
@@ -2105,11 +2106,12 @@ svg {
   }
 
   .timer-clock-block {
-    min-width: 99px;
+    width: 100%;
+    min-width: 0;
   }
 
   .timer-clock {
-    font-size: 44px;
+    font-size: clamp(80px, 24vw, 88px);
   }
 
   .timer-progress {
@@ -2118,6 +2120,7 @@ svg {
 
   .timer-actions {
     display: grid;
+    grid-column: auto;
     grid-template-columns: 0.85fr 1.35fr;
     width: 100%;
     gap: 8px;
